@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Webhook lens</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308090a'/%3E%3Ccircle cx='15' cy='15' r='7.5' fill='none' stroke='%238b7cf7' stroke-width='2'/%3E%3Ccircle cx='15' cy='15' r='3' fill='%238b7cf7' fill-opacity='0.35'/%3E%3Cpath d='M20.4 20.4 L26 26' stroke='%23d0d6e0' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="diff.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#workbench">Skip to workbench</a>
+  <header class="top">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true" focusable="false">
+        <circle cx="15" cy="15" r="7.5" fill="none" stroke="currentColor" stroke-width="2"></circle>
+        <circle cx="15" cy="15" r="3" fill="currentColor" fill-opacity="0.35"></circle>
+        <path d="M20.4 20.4 L26 26" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path>
+      </svg>
+      <div>
+        <p class="eyebrow">Local JSON workbench</p>
+        <h1>Webhook lens</h1>
+      </div>
+    </div>
+    <p class="lede">Compare two webhook payloads in this browser. Nothing is stored or sent.</p>
+  </header>
+
+  <main id="workbench" class="workbench">
+    <section class="payloads" aria-label="Payload editors">
+      <article class="panel" id="before-panel">
+        <header class="panel-head">
+          <h2>BEFORE</h2>
+          <label class="file">
+            <span>Load JSON file</span>
+            <input id="before-file" type="file" accept=".json,application/json,text/plain">
+          </label>
+        </header>
+        <label class="sr-only" for="before-text">BEFORE payload</label>
+        <textarea id="before-text" spellcheck="false" aria-describedby="before-error" rows="16"></textarea>
+        <p id="before-error" class="error" role="alert"></p>
+      </article>
+      <article class="panel" id="after-panel">
+        <header class="panel-head">
+          <h2>AFTER</h2>
+          <label class="file">
+            <span>Load JSON file</span>
+            <input id="after-file" type="file" accept=".json,application/json,text/plain">
+          </label>
+        </header>
+        <label class="sr-only" for="after-text">AFTER payload</label>
+        <textarea id="after-text" spellcheck="false" aria-describedby="after-error" rows="16"></textarea>
+        <p id="after-error" class="error" role="alert"></p>
+      </article>
+    </section>
+
+    <div class="toolbar">
+      <button type="button" id="compare-btn" class="primary">Compare</button>
+      <button type="button" id="example-btn">Load synthetic example</button>
+      <button type="button" id="clear-btn">Clear</button>
+      <p class="hint">Keyboard: <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>⌘</kbd>+<kbd>Enter</kbd></p>
+    </div>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+
+    <section class="results-wrap" aria-label="Diff results">
+      <div class="results-head">
+        <h2>Results</h2>
+        <p id="results-count" class="count">No comparison yet.</p>
+      </div>
+      <div id="filters" class="filters" role="group" aria-label="Category filters">
+        <button type="button" data-filter="all" aria-pressed="true">All <span data-count="total">0</span></button>
+        <button type="button" data-filter="added" aria-pressed="false">added <span data-count="added">0</span></button>
+        <button type="button" data-filter="removed" aria-pressed="false">removed <span data-count="removed">0</span></button>
+        <button type="button" data-filter="type_changed" aria-pressed="false">type_changed <span data-count="type_changed">0</span></button>
+        <button type="button" data-filter="value_changed" aria-pressed="false">value_changed <span data-count="value_changed">0</span></button>
+      </div>
+      <p class="note">Arrays are compared by index. Reordering or inserting items can produce many index changes. Added or removed objects and arrays are one entry at that path, with the whole subtree. Exports always include the full unfiltered diff, including sensitive before/after values.</p>
+      <ol id="results" class="results"></ol>
+      <div class="export-row">
+        <button type="button" id="copy-btn" disabled>Copy full diff JSON</button>
+        <button type="button" id="export-btn" disabled>Export full diff JSON</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <h2>Privacy</h2>
+    <p>Payload processing runs entirely in this browser. There is no analytics, no persistence, and no application network requests. Local HTML, CSS, and JavaScript are loaded only by the static server you start. Clipboard write and file download happen only when you click Copy or Export. Those exports contain the compared values and may include secrets.</p>
+  </footer>
+</body>
+</html>
