@@ -61,8 +61,14 @@
     results: document.getElementById('results'),
     copy: document.getElementById('copy-btn'),
     exportBtn: document.getElementById('export-btn'),
+    sharePreview: document.getElementById('share-preview'),
+    shareOriginalsWarning: document.getElementById('share-originals-warning'),
+    copyMasked: document.getElementById('copy-masked-btn'),
+    downloadMasked: document.getElementById('download-masked-btn'),
   };
 
+  let maskSelection = api.emptyMaskSelection();
+  let shareText = '';
   let current = null;
   let filter = 'all';
   let objectUrl = null;
@@ -82,6 +88,23 @@
   function disableExport(disabled) {
     els.copy.disabled = disabled;
     els.exportBtn.disabled = disabled;
+    els.copyMasked.disabled = disabled;
+    els.downloadMasked.disabled = disabled;
+  }
+
+  function invalidateShare() {
+    maskSelection = api.emptyMaskSelection();
+    shareText = '';
+    els.sharePreview.textContent = '';
+    els.shareOriginalsWarning.hidden = true;
+    disableExport(true);
+  }
+
+  function refreshShare() {
+    const doc = api.buildMaskedExportDocument(current, maskSelection);
+    shareText = api.stringifyExportDocument(doc);
+    els.sharePreview.textContent = shareText;
+    els.shareOriginalsWarning.hidden = !doc.includesOriginalValues;
   }
 
   function isReading() {
@@ -90,7 +113,7 @@
 
   function syncPendingUi() {
     els.compare.disabled = isReading();
-    if (isReading()) disableExport(true);
+    if (isReading()) invalidateShare();
   }
 
   function abortSideRead(side) {
@@ -122,7 +145,8 @@
   }
 
   function markStale() {
-    if (!current && !els.results.firstChild && els.copy.disabled) return;
+    invalidateShare();
+    if (!current && !els.results.firstChild) return;
     current = null;
     disableExport(true);
     clearResultsView();
@@ -184,6 +208,28 @@
         row.textContent = `types: ${change.beforeType} → ${change.afterType}`;
         item.appendChild(row);
       }
+      ['before', 'after'].forEach((side) => {
+        if (!Object.prototype.hasOwnProperty.call(change, side)) return;
+        const label = document.createElement('label');
+        label.className = 'share-selection';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.dataset.path = change.path;
+        checkbox.dataset.unmaskSide = side;
+        checkbox.checked = api.isOriginalIncluded(maskSelection, change.path, side);
+        checkbox.addEventListener('change', () => {
+          if (!current || isReading()) return;
+          maskSelection.includeOriginals = maskSelection.includeOriginals.filter(entry =>
+            entry.path !== change.path || entry.side !== side);
+          if (checkbox.checked) maskSelection.includeOriginals.push({ path: change.path, side });
+          refreshShare();
+        });
+        const text = document.createElement('span');
+        text.textContent = `Include original ${side} value in share`;
+        label.appendChild(checkbox);
+        label.appendChild(text);
+        item.appendChild(label);
+      });
       els.results.appendChild(item);
     });
   }
@@ -197,7 +243,7 @@
 
   function runCompare() {
     if (isReading()) {
-      disableExport(true);
+      invalidateShare();
       setStatus('A file is still being read. Compare is disabled until reads finish or are cancelled.');
       return;
     }
@@ -205,7 +251,7 @@
     setError(els.afterError, '');
     const result = api.compareJsonTexts(els.beforeText.value, els.afterText.value);
     current = null;
-    disableExport(true);
+    invalidateShare();
     if (!result.ok) {
       if (result.errors.before) setError(els.beforeError, result.errors.before);
       if (result.errors.after) setError(els.afterError, result.errors.after);
@@ -215,6 +261,7 @@
       return;
     }
     current = result;
+    refreshShare();
     applySummary(result.summary);
     renderResults();
     disableExport(false);
@@ -310,7 +357,7 @@
     current = null;
     filter = 'all';
     setFilter('all');
-    disableExport(true);
+    invalidateShare();
     clearResultsView();
     setStatus('Cleared.');
     syncPendingUi();
@@ -339,8 +386,9 @@
     return ok;
   }
 
-  async function copyDiff() {
-    const text = exportText();
+  async function copyDiff(masked) {
+    const text = masked ? shareText : exportText();
+    const name = masked ? 'masked share' : 'full original diff';
     if (!text) {
       setStatus('Nothing to copy. Compare valid payloads first.');
       return;
@@ -348,21 +396,22 @@
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
         await navigator.clipboard.writeText(text);
-        setStatus('Copied the full unfiltered diff JSON.');
+        setStatus(`Copied the ${name} JSON.`);
         return;
       } catch (err) {
         // fall through
       }
     }
     if (fallbackCopy(text)) {
-      setStatus('Copied the full unfiltered diff JSON using a fallback.');
+      setStatus(`Copied the ${name} JSON using a fallback.`);
       return;
     }
     setStatus('Clipboard is blocked in this browser. Use Export instead.');
   }
 
-  function exportDiff() {
-    const text = exportText();
+  function exportDiff(masked) {
+    const text = masked ? shareText : exportText();
+    const name = masked ? 'masked share' : 'full original diff';
     if (!text) {
       setStatus('Nothing to export. Compare valid payloads first.');
       return;
@@ -373,11 +422,11 @@
       objectUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = objectUrl;
-      link.download = 'webhook-lens-diff.json';
+      link.download = masked ? 'webhook-lens-masked-diff.json' : 'webhook-lens-diff.json';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      setStatus('Started download of the full unfiltered diff JSON. It includes before/after values.');
+      setStatus(`Started download of the ${name} JSON.`);
     } catch (err) {
       setStatus('Export failed in this browser.');
     }
@@ -389,7 +438,9 @@
   els.copy.addEventListener('click', function () {
     copyDiff();
   });
-  els.exportBtn.addEventListener('click', exportDiff);
+  els.exportBtn.addEventListener('click', () => exportDiff(false));
+  els.copyMasked.addEventListener('click', () => copyDiff(true));
+  els.downloadMasked.addEventListener('click', () => exportDiff(true));
   els.beforeText.addEventListener('input', function () {
     abortSideRead('before');
     markStale();
@@ -419,7 +470,7 @@
     if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'BODY' || tag === 'HTML') {
       event.preventDefault();
       if (isReading()) {
-        disableExport(true);
+        invalidateShare();
         setStatus('A file is still being read. Compare is disabled until reads finish or are cancelled.');
         return;
       }
