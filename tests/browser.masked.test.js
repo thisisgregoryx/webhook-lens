@@ -5,11 +5,35 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs/promises');
+const fsSync = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { setTimeout: delay } = require('node:timers/promises');
 const ROOT = path.resolve(__dirname, '..');
-const RECEIPTS = '/home/greg/state/webhook-lens-mask-20261028/test-runs';
-const CHROME = '/home/greg/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome';
+function isExecutableFile(candidate) {
+  try {
+    fsSync.accessSync(candidate, fsSync.constants.X_OK);
+    return fsSync.statSync(candidate).isFile();
+  } catch {
+    return false;
+  }
+}
+function resolveChrome() {
+  const specified = process.env.CHROME_BIN;
+  if (specified) {
+    if (isExecutableFile(specified)) return specified;
+    throw new Error(`CHROME_BIN is not an executable browser: ${specified}`);
+  }
+  for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+    if (!dir) continue;
+    const candidate = path.join(dir, 'chromium');
+    if (isExecutableFile(candidate)) return candidate;
+  }
+  throw new Error('Missing browser executable: set CHROME_BIN to a sandbox-enabled Chrome or Chromium, or place chromium on PATH. This test does not download, install, or skip.');
+}
+function resolveArtifacts() {
+  return process.env.WEBHOOK_LENS_TEST_ARTIFACTS || os.tmpdir();
+}
 async function until(fn, message) {
   const end = Date.now() + 10000;
   while (Date.now() < end) {
@@ -50,11 +74,14 @@ async function connect(url) {
 }
 
 test('isolated browser masked sharing workflow', { timeout: 90000 }, async (t) => {
-  const owned = await fs.mkdtemp(path.join(RECEIPTS, 'browser-'));
+  const CHROME = resolveChrome();
+  const receipts = resolveArtifacts();
+  await fs.mkdir(receipts, { recursive: true });
+  const owned = await fs.mkdtemp(path.join(receipts, 'browser-'));
   const downloads = path.join(owned, 'downloads');
   await fs.mkdir(downloads);
   // Keep the owned temp path short enough for Chromium's Unix socket limit.
-  const browserTemp = await fs.mkdtemp(path.join(path.dirname(RECEIPTS), 't-'));
+  const browserTemp = await fs.mkdtemp(path.join(os.tmpdir(), 't-'));
   const requests = [];
   const server = http.createServer(async (req, res) => {
     requests.push(req.url);

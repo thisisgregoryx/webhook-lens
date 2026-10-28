@@ -22,12 +22,16 @@ Then open `http://127.0.0.1:8766/`.
 # Lightweight schema slices (no packages):
 node --test tests/mask.test.js
 
-# Serialized, bounded focused gates in the author environment:
-flock -w 120 /home/greg/state/heavy-job.lock timeout 120s node --test tests/diff.test.js tests/mask.test.js
-flock -w 120 /home/greg/state/heavy-job.lock timeout 120s node --test tests/browser.masked.test.js
+# Focused unit gates (no packages):
+node --test tests/diff.test.js tests/mask.test.js
+
+# Required browser gate. CHROME_BIN selects the sandbox-enabled Chrome/Chromium
+# executable; if unset, the test uses `chromium` on PATH. Optional receipt root:
+# WEBHOOK_LENS_TEST_ARTIFACTS (created if needed; otherwise the OS temp directory).
+CHROME_BIN=/path/to/chrome node --test tests/browser.masked.test.js
 ```
 
-The browser test is required and does not skip or install anything. It uses Node's built-in `WebSocket` and `fetch` (Node 22+), and sandbox-enabled Chrome at `/home/greg/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome`. It starts an ephemeral loopback static server serving only the four app assets and launches an isolated temporary browser profile, without attaching to an existing browser. It checks actual clipboard and downloaded file bytes using synthetic data only, and deterministically holds a real FileReader completion. Browser receipts and downloads go under `/home/greg/state/webhook-lens-mask-20261028/test-runs/`; only its owned profile, temporary directory and child processes are cleaned up. In another environment, adjust the Chrome/receipt paths in the test; missing Chrome fails the gate.
+The browser test is required and does not skip or install anything. It uses Node's built-in `WebSocket` and `fetch` (Node 22+). Set `CHROME_BIN` to a sandbox-enabled Chrome or Chromium executable, or leave it unset to use `chromium` on PATH. It starts an ephemeral loopback static server serving only the four app assets and launches an isolated temporary browser profile, without attaching to an existing browser. It checks actual clipboard and downloaded file bytes using synthetic data only, and deterministically holds a real FileReader completion. Browser receipts and downloads go under `WEBHOOK_LENS_TEST_ARTIFACTS` when set, otherwise an ordinary OS temporary directory; only its owned profile, temporary directory and child processes are cleaned up. Missing Chrome fails the gate immediately. Contributors do not need to edit the test source.
 
 `diff.js` is a dependency-free UMD/CommonJS module (`module.exports` and `window.WebhookLensDiff`).
 
