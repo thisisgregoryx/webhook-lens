@@ -76,18 +76,28 @@
         <button type="button" data-filter="type_changed" aria-pressed="false">type_changed <span data-count="type_changed">0</span></button>
         <button type="button" data-filter="value_changed" aria-pressed="false">value_changed <span data-count="value_changed">0</span></button>
       </div>
-      <p class="note">Arrays are compared by index. Reordering or inserting items can produce many index changes. Added or removed objects and arrays are one entry at that path, with the whole subtree. Exports always include the full unfiltered diff, including sensitive before/after values.</p>
+      <p class="note">Arrays are compared by index. Reordering or inserting items can produce many index changes. Added or removed objects and arrays are one entry at that path, with the whole subtree. Filters only affect this list; neither export omits filtered entries. Local results show originals. All values in the masked share start hidden; check a side below to explicitly include its original value (including its whole subtree for objects/arrays).</p>
       <ol id="results" class="results"></ol>
       <div class="export-row">
-        <button type="button" id="copy-btn" disabled>Copy full diff JSON</button>
-        <button type="button" id="export-btn" disabled>Export full diff JSON</button>
+        <button type="button" id="copy-btn" disabled>Copy full original diff JSON</button>
+        <button type="button" id="export-btn" disabled>Export full original diff JSON</button>
+      </div>
+    </section>
+    <section id="share-panel" class="share-panel" aria-labelledby="share-heading">
+      <h2 id="share-heading">Share masked diff</h2>
+      <p id="share-warning" class="note">Review the complete JSON below before sharing. Field names, JSON pointers, types, and structure are retained and can identify data. This is not an anonymity guarantee. This is a masked comparison, not a runnable webhook payload or example event.</p>
+      <p id="share-originals-warning" class="error" role="alert" hidden>This share includes one or more original values because they were explicitly unmasked.</p>
+      <pre id="share-preview" aria-label="Exact complete sharing JSON preview"></pre>
+      <div class="export-row">
+        <button type="button" id="copy-masked-btn" disabled>Copy masked share JSON</button>
+        <button type="button" id="download-masked-btn" disabled>Download masked share JSON</button>
       </div>
     </section>
   </main>
 
   <footer class="foot">
     <h2>Privacy</h2>
-    <p>Payload processing runs entirely in this browser. There is no analytics, no persistence, and no application network requests. Local HTML, CSS, and JavaScript are loaded only by the static server you start. Clipboard write and file download happen only when you click Copy or Export. Those exports contain the compared values and may include secrets.</p>
+    <p>Payload processing runs entirely in this browser. There is no analytics, no persistence, and no application network requests. Local HTML, CSS, and JavaScript are loaded only by the static server you start. Clipboard write and file download happen only when you click Copy or Export. Full original exports contain the compared values and may include secrets. Masked shares omit values by default; explicitly included originals may contain secrets. Names, paths, types and structure remain identifying information.</p>
   </footer>
 </body>
 </html>

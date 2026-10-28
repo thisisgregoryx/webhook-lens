@@ -14,8 +14,66 @@
     maxDepth: 100,
     maxEntries: 5000,
     formatVersion: 1,
+    maskedKind: 'webhook-lens-masked-diff',
+    maskedSchemaVersion: 1,
     comparison: 'index-based',
   });
+
+  const MASKED_EXPORT_WARNINGS = Object.freeze([
+    'Field names, JSON pointers, types, and structure are retained and can identify data. This is not an anonymity guarantee.',
+    'This document is a masked comparison, not a runnable webhook payload or example event.',
+  ]);
+  const MASKED_INCLUDES_ORIGINALS_WARNING = 'This share includes one or more original values because they were explicitly unmasked.';
+
+  function emptyMaskSelection() {
+    return { includeOriginals: [] };
+  }
+
+  function includedSideLookup(selection) {
+    const included = Object.create(null);
+    for (const entry of (selection && selection.includeOriginals) || []) {
+      if (entry && typeof entry.path === 'string' && (entry.side === 'before' || entry.side === 'after')) {
+        included[entry.path + '\0' + entry.side] = true;
+      }
+    }
+    return included;
+  }
+
+  function isOriginalIncluded(selection, path, side) {
+    return includedSideLookup(selection)[path + '\0' + side] === true;
+  }
+
+  function describeMaskedSide(change, side, included) {
+    if (!Object.prototype.hasOwnProperty.call(change, side)) return { present: false };
+    const redacted = included[change.path + '\0' + side] !== true;
+    const description = { present: true, type: jsonType(change[side]), redacted };
+    if (!redacted) description.value = change[side];
+    return description;
+  }
+
+  function buildMaskedExportDocument(result, selection) {
+    if (!result || !result.ok) return null;
+    const included = includedSideLookup(selection);
+    const changes = result.changes.map(change => ({
+      path: change.path,
+      kind: change.kind,
+      before: describeMaskedSide(change, 'before', included),
+      after: describeMaskedSide(change, 'after', included),
+    }));
+    const includesOriginalValues = changes.some(change =>
+      change.before.redacted === false || change.after.redacted === false);
+    const warnings = MASKED_EXPORT_WARNINGS.slice();
+    if (includesOriginalValues) warnings.push(MASKED_INCLUDES_ORIGINALS_WARNING);
+    return {
+      kind: LIMITS.maskedKind,
+      schemaVersion: LIMITS.maskedSchemaVersion,
+      comparison: LIMITS.comparison,
+      summary: result.summary,
+      includesOriginalValues,
+      warnings,
+      changes,
+    };
+  }
 
   function utf8ByteLength(text) {
     if (typeof TextEncoder !== 'undefined') {
@@ -327,6 +385,14 @@
 
   return {
     LIMITS,
+    MASKED_EXPORT_WARNINGS,
+    MASKED_INCLUDES_ORIGINALS_WARNING,
+    buildMaskedExportDocument,
+    stringifyExportDocument: function stringifyExportDocument(doc) {
+      return JSON.stringify(doc, null, 2);
+    },
+    emptyMaskSelection,
+    isOriginalIncluded,
     parseJsonText,
     compareJsonTexts,
     compareValues,

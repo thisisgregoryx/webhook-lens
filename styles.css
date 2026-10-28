@@ -377,3 +377,22 @@ kbd {
     padding: 16px 12px 36px;
   }
 }
+
+.share-panel {
+  border: 1px solid var(--violet);
+  border-radius: 10px;
+  padding: 12px;
+  min-width: 0;
+}
+.share-panel h2 { margin-top: 0; font-size: 1rem; }
+.share-selection { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; }
+#share-preview {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: auto;
+  max-height: 36rem;
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--panel-2);
+  padding: 10px;
+}
